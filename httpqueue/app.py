@@ -18,6 +18,7 @@ def make_app(config=None):
         print ENVVAR_NAME, 'not set. Using default configuration.'
 
     app.register_module(httpqueue.views.queue.view, url_prefix='/queue')
+    httpqueue.views.queue.view.logger = app.logger
     httpqueue.model.init_model(app)
     return app
 

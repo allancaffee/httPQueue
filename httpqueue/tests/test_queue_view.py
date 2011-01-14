@@ -24,6 +24,14 @@ class TestQueueView(BaseViewTest):
 
         assert mod.model.calls('get_queue', 'foo')
 
+    def test_rejects_bad_json(self):
+        mod.json = Dingus()
+        mod.json.loads = exception_raiser(ValueError)
+        resp = self.client.post('/queue/foo/', headers=[('X-httPQueue-Priority', '2011-01-13T02:00:51.577113')],
+                                content_type='application/json')
+
+        self.assertEqual(resp.status_code, 415)
+
     def test_ack_item_succeeds(self):
         resp = self.client.delete('/queue/foo/', headers=[('X-httPQueue-ID', '1')])
 

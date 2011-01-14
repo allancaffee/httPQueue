@@ -8,7 +8,7 @@ PRIORITY_QUEUE_PREFIX = 'pq_'
 class PriorityQueueDoc(Document):
     structure = {
         'priority': datetime.datetime,
-        'task': unicode,
+        'task': None,
         'in_progress': bool
     }
 
