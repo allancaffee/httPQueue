@@ -1,6 +1,6 @@
 import datetime
 
-from mongokit import Document, Connection, ObjectId
+from mongokit import Document, Connection, ObjectId, OperationFailure
 
 # The prefix added to collections that belong to priority queues.
 PRIORITY_QUEUE_PREFIX = 'pq_'
@@ -54,27 +54,29 @@ class PriorityQueue(object):
         return pq._id
 
     def pop(self):
-        return self.db.command(
-            "findandmodify", self.name,
-            query={
-                "in_progress": False,
-                "priority": {"$lte" : datetime.datetime.utcnow() }},
-            sort={"priority" : 1},
-            update={"$set": {"in_progress" : True}},
-            )['value']
+        try:
+            return self.db.command(
+                "findandmodify", self.name,
+                query={
+                    "in_progress": False,
+                    "priority": {"$lte" : datetime.datetime.utcnow() }},
+                sort={"priority" : 1},
+                update={"$set": {"in_progress" : True}},
+                )['value']
+        except OperationFailure:
+            return None
 
     def ack(self, id):
         "Drop a task with the given id."
 
-        id = ObjectId(id)
-        rv = self.collection.remove({'_id': id, 'in_progress': True},
+        rv = self.collection.remove({'_id': ObjectId(id), 'in_progress': True},
                                     safe=True)
         if rv['n'] is 0:
             raise KeyError
 
     def cancel(self, id):
         "Drop a task with the given id."
-        rv = self.collection.remove({'_id': id, 'in_progress': False},
+        rv = self.collection.remove({'_id': ObjectId(id), 'in_progress': False},
                                     safe=True)
         if rv['n'] is 0:
             raise KeyError

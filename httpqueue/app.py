@@ -22,5 +22,5 @@ def make_app(config=None):
     httpqueue.model.init_model(app)
     return app
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     make_app(__name__).run(debug=True)

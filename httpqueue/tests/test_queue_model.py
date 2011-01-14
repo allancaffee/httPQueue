@@ -1,71 +1,64 @@
 import unittest
-import datetime
 
-from mongokit.schema_document import RequireFieldError
-from mongokit import OperationFailure, Connection
-from dingus import Dingus
+from dingus import DingusTestCase, Dingus, exception_raiser
 
 import httpqueue.model.queue as mod
 
-class TestPriorityQueue(unittest.TestCase):
+class TestPriorityQueueInit(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc)):
     def setUp(self):
-        self.connection = Connection('localhost', 27017)
-        for c in self.connection.test.collection_names():
-            if c.startswith('pq_'):
-                self.connection.test.drop_collection(c)
+        self.connection = Dingus()
+        self.priority = Dingus()
+        self.task = Dingus()
 
-        self.empty_q = mod.PriorityQueue(self.connection, 'empty')
-        self.empty_q.collection.remove()
-        self.epoch = datetime.datetime(1970, 1, 1, 0, 0, 0)
-        self.nowish = datetime.datetime.utcnow()
+    def test_init_registers_priority_doc(self):
+        q = mod.PriorityQueue(self.connection, 'name')
 
-    def test_cant_insert_none(self):
-        with self.assertRaises(RequireFieldError):
-            self.empty_q.push(self.epoch, None)
+        self.assertTrue(self.connection.calls('register', [mod.PriorityQueueDoc]))
 
-    def test_cant_have_priority_none(self):
-        with self.assertRaises(RequireFieldError):
-            self.empty_q.push(None, u'foo')
 
-    def test_cant_pop_empty_queue(self):
-        with self.assertRaises(OperationFailure):
-            self.empty_q.pop()
+class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc)):
+    def setUp(self):
+        self.connection = Dingus()
+        self.priority = Dingus()
+        self.task = Dingus()
+        mod.ObjectId = Dingus()
 
-    def test_returns_pushed_item(self):
-        q = self.empty_q
-        q.push(self.epoch, u'foo')
-        result = q.pop()
+        self.q = mod.PriorityQueue(self.connection, 'name')
 
-        self.assertEqual(result['task'],  'foo')
+    def test_push_creates_priority_doc(self):
+        self.q.push(self.priority, self.task)
 
-    def test_returns_by_priority(self):
-        q = self.empty_q
-        q.push(self.nowish, u'foo')
-        q.push(self.epoch, u'bar')
-        first = q.pop()
-        second = q.pop()
+        self.assertTrue(self.q.collection.calls('PriorityQueueDoc'))
+        doc = self.q.collection.PriorityQueueDoc()
+        self.assertEqual(doc.priority, self.priority)
+        self.assertEqual(doc.task, self.task)
 
-        self.assertEqual(first['task'], 'bar')
-        self.assertEqual(second['task'], 'foo')
+        self.assertTrue(doc.calls('save'))
 
     def test_cant_cancel_nonexistant(self):
+        self.q.collection.remove.return_value = {'n': 0}
+
         with self.assertRaises(KeyError):
-            self.empty_q.cancel('unknown')
+            self.q.cancel(Dingus())
 
-    def test_cancel_removes_from_queue(self):
-        q = self.empty_q
-        id = q.push(self.epoch, u'foo')
-        q.cancel(id)
+    def test_cancel_succeeds(self):
+        self.q.collection.remove.return_value = {'n': 1}
+        self.q.cancel(Dingus())
 
-        with self.assertRaises(OperationFailure):
-            q.pop()
+        self.q.collection.calls('remove')
 
-    def test_list_queues(self):
-        db = Dingus()
-        db.collection_names.return_value = ['pq_empty', 'bar']
-        queues = mod.list_queues(db)
+    def test_cant_ack_nonexistance(self):
+        self.q.collection.remove.return_value = {'n': 0}
 
-        self.assertEqual(queues, [u'empty'])
+        with self.assertRaises(KeyError):
+            self.q.ack(Dingus())
+
+    def test_ack_succeeds(self):
+        self.q.collection.remove.return_value = {'n': 1}
+        id = Dingus()
+        self.q.ack(id)
+
+        self.q.collection.calls('remove')
 
     def test_list_queues_only_includes_queues(self):
         db = Dingus()
