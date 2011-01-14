@@ -1,6 +1,13 @@
-from flask import Module, request, abort, url_for, json
+import datetime
+
+from flask import Module, request, abort, url_for, json, jsonify, make_response
+from mongokit import OperationFailure
 
 import httpqueue.model as model
+
+
+PRIORITY_HEADER = 'X-httPQueue-Priority'
+ID_HEADER = 'X-httPQueue-ID'
 
 view = Module(__name__)
 
@@ -40,16 +47,33 @@ def pop_item(q_name):
     its "pending lifetime" has been exceeded.
     """
     q = model.get_queue(q_name)
-    # How do we return the Riak content to the user.
-    model.pop_item()
+    try:
+        item = q.pop()
+    except OperationFailure:
+        response = make_response()
+        response.status_code = 204
+        return response
+
+    response = make_response(jsonify(item['task']))
+    response.headers[ID_HEADER] = item['_id']
+    response.headers[PRIORITY_HEADER] = item['priority'].isoformat()
+    return response
 
 @view.route('/<q_name>/', methods=['DELETE'])
 def ack_item(q_name):
     """Notify the service that a previously popped item is trash.
     """
     q = model.get_queue(q_name)
+    print request.headers
+    if ID_HEADER not in request.headers:
+        view.logger.error('Ack failed: %s header not present' % ID_HEADER)
+        abort(400)
+
+    id = request.headers[ID_HEADER]
     try:
-        q.ack(request.headers['X-httPQueue-ID'])
+        q.ack(id)
     except KeyError:
+        view.logger.error('Ack failed: no item with object id %s' % id)
         abort(404)
+
     return ''

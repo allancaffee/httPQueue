@@ -10,6 +10,10 @@ import httpqueue.model.queue as mod
 class TestPriorityQueue(unittest.TestCase):
     def setUp(self):
         self.connection = Connection('localhost', 27017)
+        for c in self.connection.test.collection_names():
+            if c.startswith('pq_'):
+                self.connection.test.drop_collection(c)
+
         self.empty_q = mod.PriorityQueue(self.connection, 'empty')
         self.empty_q.collection.remove()
         self.epoch = datetime.datetime(1970, 1, 1, 0, 0, 0)
@@ -57,7 +61,9 @@ class TestPriorityQueue(unittest.TestCase):
             q.pop()
 
     def test_list_queues(self):
-        queues = mod.list_queues(self.connection.test)
+        db = Dingus()
+        db.collection_names.return_value = ['pq_empty', 'bar']
+        queues = mod.list_queues(db)
 
         self.assertEqual(queues, [u'empty'])
 

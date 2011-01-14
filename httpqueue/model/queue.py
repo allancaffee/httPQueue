@@ -1,6 +1,6 @@
 import datetime
 
-from mongokit import Document, Connection
+from mongokit import Document, Connection, ObjectId
 
 # The prefix added to collections that belong to priority queues.
 PRIORITY_QUEUE_PREFIX = 'pq_'
@@ -65,6 +65,8 @@ class PriorityQueue(object):
 
     def ack(self, id):
         "Drop a task with the given id."
+
+        id = ObjectId(id)
         rv = self.collection.remove({'_id': id, 'in_progress': True},
                                     safe=True)
         if rv['n'] is 0:
