@@ -1,18 +1,8 @@
-import unittest
-
 from dingus import Dingus, exception_raiser
 
-import httpqueue.app
 import httpqueue.views.queue as mod
+from base_flask_test import BaseViewTest
 
-class TestingConfig(object):
-    MONGODB_HOST = 'localhost'
-    MONGODB_PORT = 27017
-
-class BaseViewTest(unittest.TestCase):
-    def setUp(self):
-        self.app = httpqueue.app.make_app(TestingConfig)
-        self.client = self.app.test_client()
 
 class TestQueueView(BaseViewTest):
     def setUp(self):
