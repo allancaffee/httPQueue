@@ -1,6 +1,9 @@
 import datetime
 
 from mongokit import Document, Connection, ObjectId, OperationFailure
+import pymongo.errors
+
+import errors
 
 # The prefix added to collections that belong to priority queues.
 PRIORITY_QUEUE_PREFIX = 'pq_'
@@ -69,17 +72,25 @@ class PriorityQueue(object):
     def ack(self, id):
         "Drop a task with the given id."
 
-        rv = self.collection.remove({'_id': ObjectId(id), 'in_progress': True},
+        rv = self.collection.remove({'_id': self._parse_object_id(id), 'in_progress': True},
                                     safe=True)
         if rv['n'] is 0:
             raise KeyError
 
     def cancel(self, id):
         "Drop a task with the given id."
-        rv = self.collection.remove({'_id': ObjectId(id), 'in_progress': False},
+
+        rv = self.collection.remove({'_id': self._parse_object_id(id), 'in_progress': False},
                                     safe=True)
         if rv['n'] is 0:
             raise KeyError
+
+    def _parse_object_id(self, id):
+        "Return the object id or raise an error."
+        try:
+            return ObjectId(id)
+        except pymongo.errors.InvalidId as e:
+            raise errors.InvalidId(e)
 
 def list_queues(db):
     """Return a list of the queues available on :param db:."""

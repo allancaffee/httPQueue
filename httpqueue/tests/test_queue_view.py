@@ -7,7 +7,10 @@ from base_flask_test import BaseViewTest
 class TestQueueView(BaseViewTest):
     def setUp(self):
         BaseViewTest.setUp(self)
+        # Don't mock out the error module.
+        errors = mod.model.errors
         mod.model = Dingus()
+        mod.model.errors = errors
 
     def test_push_without_priority_returns_400(self):
         resp = self.client.post('/queue/foo/')
@@ -48,6 +51,12 @@ class TestQueueView(BaseViewTest):
         resp = self.client.delete('/queue/foo/')
 
         self.assertEqual(resp.status_code, 400)
+
+    def test_ack_invalid_id_returns_400(self):
+        mod.model.get_queue().ack = exception_raiser(mod.model.errors.InvalidId)
+        resp = self.client.delete('/queue/foo/', headers=[('X-httPQueue-ID', 'Not-Valid')])
+
+        self.assertEqual(resp.status_code, 404)
 
     def test_list_queues_returns_json(self):
         mod.model.queue.list_queues.return_value = ['pq_foo', 'pq_bar']

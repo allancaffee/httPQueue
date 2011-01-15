@@ -1,7 +1,6 @@
 import datetime
 
 from flask import Module, request, abort, url_for, json, jsonify, make_response
-from mongokit import OperationFailure
 
 import httpqueue.model as model
 
@@ -67,12 +66,14 @@ def ack_item(q_name):
     if ID_HEADER not in request.headers:
         view.logger.error('Ack failed: %s header not present' % ID_HEADER)
         abort(400)
-
     id = request.headers[ID_HEADER]
+
     try:
         q.ack(id)
     except KeyError:
         view.logger.error('Ack failed: no item with object id %s' % id)
         abort(404)
-
+    except model.errors.InvalidId as e:
+        view.logger.error(str(e))
+        abort(404)
     return ''
