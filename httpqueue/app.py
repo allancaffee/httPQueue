@@ -3,7 +3,7 @@ from flask import Flask, request, url_for, abort
 import httpqueue.views.queue
 import httpqueue.model
 
-ENVVAR_NAME = 'RESQUE_SETTINGS'
+ENVVAR_NAME = 'HTTPQUEUE_SETTINGS'
 MONGODB_HOST = 'localhost'
 MONGODB_PORT = 27017
 
