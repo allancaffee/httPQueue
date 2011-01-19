@@ -39,7 +39,7 @@ class Producer(ClientBase):
 
 class Consumer(ClientBase):
     def act(self):
-        self.conn.request('GET', '/queue/foo/')
+        self.conn.request('POP', '/queue/foo/')
         resp = self.conn.getresponse()
         id = resp.getheader('x-httpqueue-id')
         if resp.status in (200, 204):
@@ -48,7 +48,7 @@ class Consumer(ClientBase):
             print "%s failed with %s" % (type(self).__name__, resp.status)
             return
 
-        self.conn.request('DELETE', '/queue/foo/', headers={'x-httpqueue-id':id})
+        self.conn.request('ACK', '/queue/foo/id/%s' % id)
         resp = self.conn.getresponse()
         if resp.status in (200, 204):
             counters['acked'] += 1

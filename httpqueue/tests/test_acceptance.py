@@ -34,7 +34,7 @@ class TestAcceptance(BaseViewTest):
         data = '{\n  "do": "something"\n}'
         self._post_data(self.nowish, data)
 
-        resp = self.client.get('/queue/foo/')
+        resp = self.client.open(method='POP', path='/queue/foo/')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data, data)
         self.assertEqual(resp.content_type, 'application/json')
@@ -42,12 +42,13 @@ class TestAcceptance(BaseViewTest):
         self.assertIn('X-httPQueue-ID', resp.headers)
 
         id = resp.headers['X-httPQueue-ID']
-        resp = self.client.delete('/queue/foo/',
-                                  headers=[('X-httPQueue-ID', id)])
+        print id
+        resp = self.client.open(method='ACK', path='/queue/foo/id/%s' % id)
 
         self.assertEqual(resp.status_code, 200)
 
-        resp = self.client.get('/queue/foo/')
+        # Nothing left.
+        resp = self.client.open(method='POP', path='/queue/foo/')
 
         self.assertEqual(resp.status_code, 204)
 
@@ -58,4 +59,10 @@ class TestAcceptance(BaseViewTest):
         self._post_data(self.nowish, data_second)
         self._post_data(self.epoch, data_first)
 
-        resp = self.client.get('/queue/foo/')
+        resp = self.client.open(method='POP', path='/queue/foo/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, data_first)
+
+        resp = self.client.open(method='POP', path='/queue/foo/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, data_second)

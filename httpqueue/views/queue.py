@@ -33,12 +33,10 @@ def push_item(q_name):
         view.logger.error('Failed to parse JSON from request body: %s' % request.data)
         abort(415)
 
-    q.push(priority, task)
+    print "new ID:", q.push(priority, task)
     return ''
 
-# FIXME: This really shouldn't be a GET request... Look for an
-# alternative or make a new method POP.
-@view.route('/<q_name>/', methods=['GET'])
+@view.route('/<q_name>/', methods=['POP'])
 def pop_item(q_name):
     """Remove and return the next item.
 
@@ -57,19 +55,31 @@ def pop_item(q_name):
     response.headers[PRIORITY_HEADER] = item['priority'].isoformat()
     return response
 
-@view.route('/<q_name>/', methods=['DELETE'])
-def ack_item(q_name):
+@view.route('/<q_name>/id/<id>', methods=['ACK'])
+def ack_item(q_name, id):
     """Notify the service that a previously popped item is trash.
     """
     q = model.get_queue(q_name)
-    print request.headers
-    if ID_HEADER not in request.headers:
-        view.logger.error('Ack failed: %s header not present' % ID_HEADER)
-        abort(400)
-    id = request.headers[ID_HEADER]
 
     try:
+        print 'acking', id
         q.ack(id)
+    except KeyError:
+        view.logger.error('Ack failed: no item with object id %s' % id)
+        abort(404)
+    except model.errors.InvalidId as e:
+        view.logger.error(str(e))
+        abort(404)
+    return ''
+
+@view.route('/<q_name>/id/<id>', methods=['CANCEL'])
+def cancel_item(q_name, id):
+    """Notify the service that a previously popped item is trash.
+    """
+    q = model.get_queue(q_name)
+
+    try:
+        q.cancel(id)
     except KeyError:
         view.logger.error('Ack failed: no item with object id %s' % id)
         abort(404)

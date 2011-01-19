@@ -36,25 +36,20 @@ class TestQueueView(BaseViewTest):
         self.assertEqual(resp.status_code, 415)
 
     def test_ack_item_succeeds(self):
-        resp = self.client.delete('/queue/foo/', headers=[('X-httPQueue-ID', '1')])
+        resp = self.client.open(method='ACK', path='/queue/foo/id/1')
 
-        assert mod.model.get_queue('foo').calls('ack', '1')
         self.assertEqual(resp.status_code, 200)
+        assert mod.model.get_queue('foo').calls('ack', '1')
 
     def test_ack_nonexistant_returns_404(self):
         mod.model.get_queue().ack = exception_raiser(KeyError)
-        resp = self.client.delete('/queue/foo/', headers=[('X-httPQueue-ID', '1')])
+        resp = self.client.open(method='ACK', path='/queue/foo/id/1')
 
         self.assertEqual(resp.status_code, 404)
 
-    def test_ack_without_id_returns_400(self):
-        resp = self.client.delete('/queue/foo/')
-
-        self.assertEqual(resp.status_code, 400)
-
-    def test_ack_invalid_id_returns_400(self):
+    def test_ack_invalid_id_returns_404(self):
         mod.model.get_queue().ack = exception_raiser(mod.model.errors.InvalidId)
-        resp = self.client.delete('/queue/foo/', headers=[('X-httPQueue-ID', 'Not-Valid')])
+        resp = self.client.open(method='ACK', path='/queue/foo/id/NotValid')
 
         self.assertEqual(resp.status_code, 404)
 
@@ -67,6 +62,6 @@ class TestQueueView(BaseViewTest):
 
     def test_pop_from_empty_returns_204(self):
         mod.model.get_queue().pop.return_value = None
-        resp = self.client.get('/queue/foo/')
+        resp = self.client.open(method='POP', path='/queue/foo/')
 
         self.assertEqual(resp.status_code, 204)
