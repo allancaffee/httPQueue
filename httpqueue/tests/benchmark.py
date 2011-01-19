@@ -5,7 +5,7 @@ import httplib
 import random
 import threading
 
-SERVER = 'localhost:5000'
+SERVER = 'localhost:8000'
 Halt = False
 
 # Totally not threadsafe...
@@ -49,7 +49,7 @@ class Consumer(ClientBase):
             counters['no-content'] += 1
             return
         else:
-            print "%s failed with %s" % (type(self).__name__, resp.status)
+            print "%s (POP) failed with %s" % (type(self).__name__, resp.status)
             return
 
         self.conn.request('ACK', '/queue/foo/id/%s' % id)
@@ -57,7 +57,7 @@ class Consumer(ClientBase):
         if resp.status in (200, 204):
             counters['acked'] += 1
         else:
-            print "%s failed with %s" % (type(self).__name__, resp.status)
+            print "%s (ACK) failed with %s" % (type(self).__name__, resp.status)
 
 parser = argparse.ArgumentParser(description='Run performance testing on httPQueue')
 parser.add_argument('--producers', type=int, help='Number of producer threads to run', default=5)
@@ -66,6 +66,7 @@ args = parser.parse_args()
 
 start = datetime.datetime.now()
 actors = set()
+
 for i in range(args.producers):
     a = Producer()
     actors.add(a)
