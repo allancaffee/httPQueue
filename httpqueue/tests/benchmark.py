@@ -1,3 +1,4 @@
+import argparse
 import collections
 import datetime
 import httplib
@@ -55,14 +56,19 @@ class Consumer(ClientBase):
         else:
             print "%s failed with %s" % (type(self).__name__, resp.status)
 
+parser = argparse.ArgumentParser(description='Run performance testing on httPQueue')
+parser.add_argument('--producers', type=int, help='Number of producer threads to run', default=5)
+parser.add_argument('--consumers', type=int, help='Number of consume/ack threads to run', default=10)
+args = parser.parse_args()
+
 start = datetime.datetime.now()
 actors = set()
-for i in range(5):
+for i in range(args.producers):
     a = Producer()
     actors.add(a)
     a.start()
 
-for i in range(10):
+for i in range(args.consumers):
     a = Consumer()
     actors.add(a)
     a.start()
