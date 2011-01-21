@@ -20,7 +20,7 @@ class PriorityQueueDoc(Document):
 
     indexes = [
         {
-            'fields': ['priority'],
+            'fields': ['priority', 'in_progress'],
         },
     ]
 
