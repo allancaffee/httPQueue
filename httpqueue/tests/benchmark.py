@@ -43,8 +43,11 @@ class Consumer(ClientBase):
         self.conn.request('POP', '/queue/foo/')
         resp = self.conn.getresponse()
         id = resp.getheader('x-httpqueue-id')
-        if resp.status in (200, 204):
+        if resp.status == 200:
             counters['consumed'] += 1
+        elif resp.status == 204:
+            counters['no-content'] += 1
+            return
         else:
             print "%s failed with %s" % (type(self).__name__, resp.status)
             return
