@@ -1,27 +1,27 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
-import argparse
 import collections
 import datetime
 import gevent
 import httplib
+import optparse
 import random
 
 SERVER = 'localhost:8000'
 Halt = False
 
-# Totally not threadsafe...
 counters = collections.defaultdict(int)
 
 class ClientBase(gevent.Greenlet):
     def __init__(self):
-        self.conn = httplib.HTTPConnection(SERVER)
         gevent.Greenlet.__init__(self)
+        self.conn = httplib.HTTPConnection(SERVER)
 
     def _run(self):
         while not Halt:
             self.act()
+            gevent.sleep(0)
 
     def act(self):
         raise NotImplementedError
@@ -64,20 +64,20 @@ class Consumer(ClientBase):
         else:
             print "%s (ACK) failed with %s" % (type(self).__name__, resp.status)
 
-parser = argparse.ArgumentParser(description='Run performance testing on httPQueue')
-parser.add_argument('--producers', type=int, help='Number of producer threads to run', default=5)
-parser.add_argument('--consumers', type=int, help='Number of consume/ack threads to run', default=10)
-args = parser.parse_args()
+parser = optparse.OptionParser(description='Run performance testing on httPQueue')
+parser.add_option('--producers', type=int, help='Number of producer threads to run', default=5)
+parser.add_option('--consumers', type=int, help='Number of consume/ack threads to run', default=10)
+options, args = parser.parse_args()
 
 start = datetime.datetime.now()
 actors = set()
 
-for i in range(args.producers):
+for i in range(options.producers):
     a = Producer()
     actors.add(a)
     a.start()
 
-for i in range(args.consumers):
+for i in range(options.consumers):
     a = Consumer()
     actors.add(a)
     a.start()
