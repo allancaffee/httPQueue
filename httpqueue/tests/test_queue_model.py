@@ -103,3 +103,13 @@ class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc))
         queues = mod.list_queues(db)
 
         self.assertEqual(queues, [])
+
+    def test_restore_pending(self):
+        mod.datetime = Dingus()
+        self.q.restore_pending()
+
+        assert self.q.collection.calls(
+            'update', {'in_progress': True,
+             'expire_time': {'$lte': mod.datetime.datetime.utcnow()}},
+            {'$unset': {'expire_time': 1},
+             '$set': {'in_progress': False}})

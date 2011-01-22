@@ -96,6 +96,20 @@ class PriorityQueue(object):
         if rv['n'] is 0:
             raise KeyError
 
+    def restore_pending(self):
+        """Restore all pending tasks whose pending-life has expired.
+
+        They will be returned to the state they were in prior to being
+        POPed.  This should be run as frequently as is feasable so
+        that jobs can be picked back up by a worker quickly.
+        """
+
+        rv = self.collection.update(
+            {'in_progress': True,
+             'expire_time': {'$lte': datetime.datetime.utcnow()}},
+            {'$unset': {'expire_time': 1},
+             '$set': {'in_progress': False}})
+
     def _parse_object_id(self, id):
         "Return the object id or raise an error."
         try:
