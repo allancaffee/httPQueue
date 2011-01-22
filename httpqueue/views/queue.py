@@ -44,6 +44,7 @@ def pop_item(q_name):
     its "pending lifetime" has been exceeded.
     """
     q = model.get_queue(q_name)
+    q.restore_pending()
     item = q.pop()
     if item is None:
         response = make_response()

@@ -65,3 +65,8 @@ class TestQueueView(BaseViewTest):
         resp = self.client.open(method='POP', path='/queue/foo/')
 
         self.assertEqual(resp.status_code, 204)
+
+    def test_pop_restores_pending(self):
+        self.client.open(method='POP', path='/queue/foo/')
+
+        assert mod.model.get_queue().calls('restore_pending')
