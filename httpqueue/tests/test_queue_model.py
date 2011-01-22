@@ -1,6 +1,6 @@
 import unittest
 
-from dingus import DingusTestCase, Dingus, exception_raiser
+from dingus import DingusTestCase, Dingus, exception_raiser, DontCare
 
 import httpqueue.model.queue as mod
 
@@ -72,12 +72,30 @@ class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc))
 
         self.q.collection.calls('remove')
 
+    def test_pop_sets_expiration_date(self):
+        self.q._calculate_expiration_time = Dingus()
+        self.q.pop()
+
+        assert self.q._calculate_expiration_time.calls('()')
+        expiration = self.q._calculate_expiration_time()
+        assert self.q.collection.calls('update', DontCare,
+                                       {'$set': {'expire_time': expiration}})
+
     def test_list_queues_only_includes_queues(self):
         db = Dingus()
         db.collection_names.return_value = ['pq_empty', 'foo', 'pq_bar']
         queues = mod.list_queues(db)
 
         self.assertEqual(queues, ['empty', 'bar'])
+
+    def test_expiration_is_now_plus_delta(self):
+        mod.datetime = Dingus()
+        delta = Dingus()
+        rv = self.q._calculate_expiration_time(delta)
+
+        assert mod.datetime.datetime.calls('utcnow')
+        assert mod.datetime.calls('timedelta', seconds=delta)
+        self.assertEqual(rv, mod.datetime.datetime.utcnow() + mod.datetime.timedelta(delta))
 
     def test_list_queues_no_collections(self):
         db = Dingus()

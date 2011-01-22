@@ -12,15 +12,20 @@ class PriorityQueueDoc(Document):
     structure = {
         'priority': datetime.datetime,
         'task': None,
-        'in_progress': bool
+        'in_progress': bool,
+        'expire_time': datetime.datetime,
+        'pending_life': int,
     }
 
     required_fields = ['priority', 'task']
-    default_values = {'in_progress': False}
+    default_values = {'in_progress': False, 'pending_life': 5 * 60}
 
     indexes = [
         {
             'fields': ['priority', 'in_progress'],
+        },
+        {
+            'fields': ['expire_time'],
         },
     ]
 
@@ -58,7 +63,7 @@ class PriorityQueue(object):
 
     def pop(self):
         try:
-            return self.db.command(
+            rv = self.db.command(
                 "findandmodify", self.name,
                 query={
                     "in_progress": False,
@@ -68,6 +73,12 @@ class PriorityQueue(object):
                 )['value']
         except OperationFailure:
             return None
+
+        # Set the expiration date before returning the value.
+        expiration = self._calculate_expiration_time(rv['pending_life'])
+        self.collection.update({'_id': self._parse_object_id(rv['_id'])},
+                               {'$set': {'expire_time': expiration}})
+        return rv
 
     def ack(self, id):
         "Drop a task with the given id."
@@ -91,6 +102,9 @@ class PriorityQueue(object):
             return ObjectId(id)
         except pymongo.errors.InvalidId as e:
             raise errors.InvalidId(e)
+
+    def _calculate_expiration_time(self, pending_life):
+        return datetime.datetime.utcnow() + datetime.timedelta(seconds=pending_life)
 
 def list_queues(db):
     """Return a list of the queues available on :param db:."""
