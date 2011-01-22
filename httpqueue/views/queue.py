@@ -33,7 +33,7 @@ def push_item(q_name):
         view.logger.error('Failed to parse JSON from request body: %s' % request.data)
         abort(415)
 
-    print "new ID:", q.push(priority, task)
+    q.push(priority, task)
     return ''
 
 @view.route('/<q_name>/', methods=['POP'])
@@ -62,7 +62,6 @@ def ack_item(q_name, id):
     q = model.get_queue(q_name)
 
     try:
-        print 'acking', id
         q.ack(id)
     except KeyError:
         view.logger.error('Ack failed: no item with object id %s' % id)

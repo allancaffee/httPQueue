@@ -42,7 +42,6 @@ class TestAcceptance(BaseViewTest):
         self.assertIn('X-httPQueue-ID', resp.headers)
 
         id = resp.headers['X-httPQueue-ID']
-        print id
         resp = self.client.open(method='ACK', path='/queue/foo/id/%s' % id)
 
         self.assertEqual(resp.status_code, 200)
