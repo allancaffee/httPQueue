@@ -1,9 +1,12 @@
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import argparse
 import collections
 import datetime
+import gevent
 import httplib
 import random
-import threading
 
 SERVER = 'localhost:8000'
 Halt = False
@@ -11,16 +14,14 @@ Halt = False
 # Totally not threadsafe...
 counters = collections.defaultdict(int)
 
-class ClientBase(threading.Thread):
+class ClientBase(gevent.Greenlet):
     def __init__(self):
         self.conn = httplib.HTTPConnection(SERVER)
-        self.counter = 0
-        threading.Thread.__init__(self)
+        gevent.Greenlet.__init__(self)
 
-    def run(self):
+    def _run(self):
         while not Halt:
             self.act()
-            self.counter += 1
 
     def act(self):
         raise NotImplementedError
@@ -32,7 +33,9 @@ class Producer(ClientBase):
                           headers={'content-type': 'application/json',
                                    'x-httpqueue-priority': datetime.datetime.utcnow().isoformat(),
                                    })
+
         resp = self.conn.getresponse()
+        resp.read() # Discard the body
         if resp.status not in (200, 204):
             print "%s failed with %s" % (type(self).__name__, resp.status)
         else:
@@ -42,6 +45,7 @@ class Consumer(ClientBase):
     def act(self):
         self.conn.request('POP', '/queue/foo/')
         resp = self.conn.getresponse()
+        resp.read() # Discard the body
         id = resp.getheader('x-httpqueue-id')
         if resp.status == 200:
             counters['consumed'] += 1
@@ -54,6 +58,7 @@ class Consumer(ClientBase):
 
         self.conn.request('ACK', '/queue/foo/id/%s' % id)
         resp = self.conn.getresponse()
+        resp.read() # Discard the body
         if resp.status in (200, 204):
             counters['acked'] += 1
         else:
@@ -79,7 +84,7 @@ for i in range(args.consumers):
 
 try:
     while True:
-        pass
+        gevent.sleep(1)
 except KeyboardInterrupt:
     Halt = True
 
