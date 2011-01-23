@@ -65,8 +65,10 @@ class Consumer(ClientBase):
             print "%s (ACK) failed with %s" % (type(self).__name__, resp.status)
 
 parser = optparse.OptionParser(description='Run performance testing on httPQueue')
-parser.add_option('--producers', type=int, help='Number of producer threads to run', default=5)
-parser.add_option('--consumers', type=int, help='Number of consume/ack threads to run', default=10)
+parser.add_option('--producers', '-p', type=int, help='Number of producer threads to run', default=5)
+parser.add_option('--consumers', '-c', type=int, help='Number of consume/ack threads to run', default=10)
+parser.add_option('--duration', '-d', type=int, default=None,
+                  help='Number of seconds to run the test for (default is to run indefinitely')
 options, args = parser.parse_args()
 
 start = datetime.datetime.now()
@@ -83,16 +85,20 @@ for i in range(options.consumers):
     a.start()
 
 try:
-    while True:
-        gevent.sleep(1)
+    if options.duration is None:
+        gevent.joinall(actors)
+    else:
+        gevent.sleep(options.duration)
+        Halt = True
 except KeyboardInterrupt:
     Halt = True
 
-for a in actors:
-    a.join()
+gevent.joinall(actors)
 
 period = datetime.datetime.now() - start
 
 print '\nSpent %s; %s seconds' % (period, period.seconds)
+print 'producers:', options.producers
+print 'consumers:', options.consumers
 for k, v in counters.items():
     print '%s = %s; %s per second' % (k, v, v/float(period.seconds))
