@@ -1,4 +1,4 @@
-from flask import Flask, request, url_for, abort
+from flask import Flask
 
 import httpqueue.views.queue
 import httpqueue.model

@@ -44,7 +44,7 @@ class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc))
     def test_cancel_with_bad_id(self):
         mod.ObjectId = exception_raiser(mod.pymongo.errors.InvalidId)
 
-        with self.assertRaises(mod.errors.InvalidId):
+        with self.assertRaises(mod.httpqueue.model.errors.InvalidId):
             self.q.cancel(Dingus())
 
     def test_cancel_succeeds(self):
@@ -62,7 +62,7 @@ class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc))
     def test_ack_with_bad_id(self):
         mod.ObjectId = exception_raiser(mod.pymongo.errors.InvalidId)
 
-        with self.assertRaises(mod.errors.InvalidId):
+        with self.assertRaises(mod.httpqueue.model.errors.InvalidId):
             self.q.ack(Dingus())
 
     def test_ack_succeeds(self):

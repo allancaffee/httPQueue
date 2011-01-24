@@ -1,6 +1,12 @@
+"""Queue view
+
+This module is a Flask `Module` exposing the basic queue operations.
+"""
+
 import datetime
 
-from flask import Module, request, abort, url_for, json, jsonify, make_response
+from flask import (Module, request, abort, json, jsonify,
+                   make_response, current_app)
 
 import httpqueue.model as model
 
@@ -12,25 +18,33 @@ view = Module(__name__)
 
 @view.route('/', methods=['GET'])
 def list_queues():
+    """Retrieve a JSON list of existing queues."""
+
     return json.dumps(model.queue.list_queues())
 
 @view.route('/<q_name>/', methods=['POST'])
 def push_item(q_name):
+    """Take in a JSON document and add it to the queue.
+
+    The request is also expected to have an X-httPQueue-Priority header.
+    """
+
     try:
         priority = request.headers[PRIORITY_HEADER]
         priority = datetime.datetime.strptime(priority, '%Y-%m-%dT%H:%M:%S.%f')
     except KeyError:
-        view.logger.error('No priority header.')
+        current_app.logger.error('No priority header.')
         abort(400)
-    except ValueError as e:
-        view.logger.error(str(e))
+    except ValueError as ex:
+        current_app.logger.error(str(ex))
         abort(400)
 
     q = model.get_queue(q_name)
     try:
         task = json.loads(request.data)
     except ValueError:
-        view.logger.error('Failed to parse JSON from request body: %s' % request.data)
+        current_app.logger.error(
+            'Failed to parse JSON from request body: %s' % request.data)
         abort(415)
 
     q.push(priority, task)
@@ -43,6 +57,7 @@ def pop_item(q_name):
     The item is moved to the pending queue until it has been acked or
     its "pending lifetime" has been exceeded.
     """
+
     q = model.get_queue(q_name)
     q.restore_pending()
     item = q.pop()
@@ -60,30 +75,34 @@ def pop_item(q_name):
 def ack_item(q_name, id):
     """Notify the service that a previously popped item is trash.
     """
+
     q = model.get_queue(q_name)
 
     try:
         q.ack(id)
     except KeyError:
-        view.logger.error('Ack failed: no item with object id %s' % id)
+        current_app.logger.error('Ack failed: no item with object id %s' % id)
         abort(404)
-    except model.errors.InvalidId as e:
-        view.logger.error(str(e))
+    except model.errors.InvalidId as ex:
+        current_app.logger.error(str(ex))
         abort(404)
     return ''
 
 @view.route('/<q_name>/id/<id>', methods=['CANCEL'])
 def cancel_item(q_name, id):
-    """Notify the service that a previously popped item is trash.
+    """Notify the service that a previously queued item should be dropped.
+
+    If the document has already been picked up by a client a 404 is returned.
     """
+
     q = model.get_queue(q_name)
 
     try:
         q.cancel(id)
     except KeyError:
-        view.logger.error('Ack failed: no item with object id %s' % id)
+        current_app.logger.error('Ack failed: no item with object id %s' % id)
         abort(404)
-    except model.errors.InvalidId as e:
-        view.logger.error(str(e))
+    except model.errors.InvalidId as ex:
+        current_app.logger.error(str(ex))
         abort(404)
     return ''

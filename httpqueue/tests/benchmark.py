@@ -6,7 +6,6 @@ import datetime
 import gevent
 import httplib
 import optparse
-import random
 
 SERVER = 'localhost:8000'
 Halt = False

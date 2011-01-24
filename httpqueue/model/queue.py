@@ -1,14 +1,18 @@
+"""Mongo backed queue model"""
+
 import datetime
 
-from mongokit import Document, Connection, ObjectId, OperationFailure
+from mongokit import Document, ObjectId, OperationFailure
 import pymongo.errors
 
-import errors
+import httpqueue.model.errors
 
 # The prefix added to collections that belong to priority queues.
 PRIORITY_QUEUE_PREFIX = 'pq_'
 
 class PriorityQueueDoc(Document):
+    """Document representing a task and its associated metadata."""
+
     structure = {
         'priority': datetime.datetime,
         'task': None,
@@ -59,7 +63,7 @@ class PriorityQueue(object):
         pq.priority = priority
         pq.task = obj
         pq.save()
-        return pq._id
+        return pq['_id']
 
     def pop(self):
         try:
@@ -81,18 +85,19 @@ class PriorityQueue(object):
         return rv
 
     def ack(self, id):
-        "Drop a task with the given id."
+        """Drop a task with the given id that has already been picked up."""
 
-        rv = self.collection.remove({'_id': self._parse_object_id(id), 'in_progress': True},
-                                    safe=True)
+        rv = self.collection.remove({
+            '_id': self._parse_object_id(id), 'in_progress': True}, safe=True)
         if rv['n'] is 0:
             raise KeyError
 
     def cancel(self, id):
-        "Drop a task with the given id."
+        """Drop a task with the given id given that it has not yet been popped.
+        """
 
-        rv = self.collection.remove({'_id': self._parse_object_id(id), 'in_progress': False},
-                                    safe=True)
+        rv = self.collection.remove({
+            '_id': self._parse_object_id(id), 'in_progress': False}, safe=True)
         if rv['n'] is 0:
             raise KeyError
 
@@ -104,21 +109,23 @@ class PriorityQueue(object):
         that jobs can be picked back up by a worker quickly.
         """
 
-        rv = self.collection.update(
+        self.collection.update(
             {'in_progress': True,
              'expire_time': {'$lte': datetime.datetime.utcnow()}},
             {'$unset': {'expire_time': 1},
              '$set': {'in_progress': False}})
 
     def _parse_object_id(self, id):
-        "Return the object id or raise an error."
+        """Return the object id or raise an error."""
         try:
             return ObjectId(id)
-        except pymongo.errors.InvalidId as e:
-            raise errors.InvalidId(e)
+        except pymongo.errors.InvalidId as ex:
+            raise httpqueue.model.errors.InvalidId(ex)
 
     def _calculate_expiration_time(self, pending_life):
-        return datetime.datetime.utcnow() + datetime.timedelta(seconds=pending_life)
+        """Calculate the expiration date based on the pending life."""
+        return datetime.datetime.utcnow() + \
+               datetime.timedelta(seconds=pending_life)
 
 def list_queues(db):
     """Return a list of the queues available on :param db:."""

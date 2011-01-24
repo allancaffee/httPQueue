@@ -1,6 +1,6 @@
 import mongokit
 
-import queue
+import httpqueue.model.queue
 
 connection = None
 
