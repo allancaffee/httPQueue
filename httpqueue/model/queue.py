@@ -10,7 +10,7 @@ import httpqueue.model.errors
 # The prefix added to collections that belong to priority queues.
 PRIORITY_QUEUE_PREFIX = 'pq_'
 
-class PriorityQueueDoc(Document):
+class TaskDoc(Document):
     """Document representing a task and its associated metadata."""
 
     structure = {
@@ -47,7 +47,7 @@ class PriorityQueue(object):
     def __init__(self, connection, q_name):
         self.name = PRIORITY_QUEUE_PREFIX + q_name
         self.con = connection
-        self.con.register([PriorityQueueDoc])
+        self.con.register([TaskDoc])
 
     @property
     def db(self):
@@ -59,7 +59,7 @@ class PriorityQueue(object):
         return getattr(self.db, self.name)
 
     def push(self, priority, obj):
-        pq = self.collection.PriorityQueueDoc()
+        pq = self.collection.TaskDoc()
         pq.priority = priority
         pq.task = obj
         pq.save()

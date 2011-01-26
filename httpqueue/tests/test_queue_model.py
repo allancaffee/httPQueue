@@ -4,19 +4,19 @@ from dingus import DingusTestCase, Dingus, exception_raiser, DontCare
 
 import httpqueue.model.queue as mod
 
-class TestPriorityQueueInit(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc)):
+class TestPriorityQueueInit(unittest.TestCase, DingusTestCase(mod.TaskDoc)):
     def setUp(self):
         self.connection = Dingus()
         self.priority = Dingus()
         self.task = Dingus()
 
-    def test_init_registers_priority_doc(self):
+    def test_init_registers_task_doc(self):
         q = mod.PriorityQueue(self.connection, 'name')
 
-        self.assertTrue(self.connection.calls('register', [mod.PriorityQueueDoc]))
+        self.assertTrue(self.connection.calls('register', [mod.TaskDoc]))
 
 
-class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc)):
+class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.TaskDoc)):
     def setUp(self):
         self.connection = Dingus()
         self.priority = Dingus()
@@ -28,8 +28,8 @@ class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.PriorityQueueDoc))
     def test_push_creates_priority_doc(self):
         self.q.push(self.priority, self.task)
 
-        self.assertTrue(self.q.collection.calls('PriorityQueueDoc'))
-        doc = self.q.collection.PriorityQueueDoc()
+        self.assertTrue(self.q.collection.calls('TaskDoc'))
+        doc = self.q.collection.TaskDoc()
         self.assertEqual(doc.priority, self.priority)
         self.assertEqual(doc.task, self.task)
 
