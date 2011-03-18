@@ -1,92 +1,157 @@
-import unittest
-
 from dingus import DingusTestCase, Dingus, exception_raiser, DontCare
+from nose.tools import assert_raises
 
+from httpqueue.model.queue import PriorityQueue
 import httpqueue.model.queue as mod
 
-class TestPriorityQueueInit(unittest.TestCase, DingusTestCase(mod.TaskDoc)):
-    def setUp(self):
-        self.connection = Dingus()
-        self.priority = Dingus()
-        self.task = Dingus()
+class WhenInitializingPriorityQueue(DingusTestCase(PriorityQueue)):
+    def setup(self):
+        super(WhenInitializingPriorityQueue, self).setup()
+        self.connection = Dingus('connection')
+        self.priority = Dingus('priority')
+        self.task = Dingus('task')
 
-    def test_init_registers_task_doc(self):
-        q = mod.PriorityQueue(self.connection, 'name')
+        self.priority_queue = PriorityQueue(self.connection, 'name')
 
-        self.assertTrue(self.connection.calls('register', [mod.TaskDoc]))
+    def should_register_task_doc(self):
+        assert self.connection.calls('register', [mod.TaskDoc]).once()
 
 
-class TestPriorityQueue(unittest.TestCase, DingusTestCase(mod.TaskDoc)):
-    def setUp(self):
-        self.connection = Dingus()
-        self.priority = Dingus()
-        self.task = Dingus()
-        mod.ObjectId = Dingus()
+class DescribePriorityQueue(DingusTestCase(
+    PriorityQueue, ['PRIORITY_QUEUE_PREFIX', 'PQInvalidId',
+                    'PymongoInvalidId'])):
 
-        self.q = mod.PriorityQueue(self.connection, 'name')
+    def setup(self):
+        super(DescribePriorityQueue, self).setup()
+        self.connection = Dingus('connection')
+        self.priority = Dingus('priority')
+        self.task = Dingus('task')
 
-    def test_push_creates_priority_doc(self):
-        self.q.push(self.priority, self.task)
+        self.priority_queue = PriorityQueue(self.connection, 'name')
 
-        self.assertTrue(self.q.collection.calls('TaskDoc'))
-        doc = self.q.collection.TaskDoc()
-        self.assertEqual(doc.priority, self.priority)
-        self.assertEqual(doc.task, self.task)
 
-        self.assertTrue(doc.calls('save'))
+class WhenPushingPriorityDoc(DescribePriorityQueue):
 
-    def test_cant_cancel_nonexistant(self):
-        self.q.collection.remove.return_value = {'n': 0}
+    def setup(self):
+        DescribePriorityQueue.setup(self)
 
-        with self.assertRaises(KeyError):
-            self.q.cancel(Dingus())
+        self.priority_queue.push(self.priority, self.task)
 
-    def test_cancel_with_bad_id(self):
-        mod.ObjectId = exception_raiser(mod.pymongo.errors.InvalidId)
+    def should_create_task_doc_in_collection(self):
+        assert self.priority_queue.collection.calls('TaskDoc').once()
 
-        with self.assertRaises(mod.httpqueue.model.errors.InvalidId):
-            self.q.cancel(Dingus())
+    def should_set_priorty_on_task_document(self):
+        doc = self.priority_queue.collection.TaskDoc()
+        assert doc.priority == self.priority
 
-    def test_cancel_succeeds(self):
-        self.q.collection.remove.return_value = {'n': 1}
-        self.q.cancel(Dingus())
+    def should_set_task_body_as_task(self):
+        doc = self.priority_queue.collection.TaskDoc()
+        assert doc.task == self.task
 
-        self.q.collection.calls('remove')
+    def should_save_task_doc(self):
+        doc = self.priority_queue.collection.TaskDoc()
+        assert doc.calls('save').once()
 
-    def test_cant_ack_nonexistance(self):
-        self.q.collection.remove.return_value = {'n': 0}
 
-        with self.assertRaises(KeyError):
-            self.q.ack(Dingus())
+class WhenCancellingNonExistantTask(DescribePriorityQueue):
 
-    def test_ack_with_bad_id(self):
-        mod.ObjectId = exception_raiser(mod.pymongo.errors.InvalidId)
+    def setup(self):
+        DescribePriorityQueue.setup(self)
 
-        with self.assertRaises(mod.httpqueue.model.errors.InvalidId):
-            self.q.ack(Dingus())
+        self.priority_queue.collection.remove.return_value = {'n': 0}
 
-    def test_ack_succeeds(self):
-        self.q.collection.remove.return_value = {'n': 1}
-        id = Dingus()
-        self.q.ack(id)
+    def should_raise_key_error(self):
+        assert_raises(KeyError, self.priority_queue.cancel, Dingus())
 
-        self.q.collection.calls('remove')
 
-    def test_pop_sets_expiration_date(self):
-        self.q._calculate_expiration_time = Dingus()
-        self.q.pop()
+class WhenCancellingWithBadId(DescribePriorityQueue):
 
-        assert self.q._calculate_expiration_time.calls('()')
-        expiration = self.q._calculate_expiration_time()
-        assert self.q.collection.calls('update', DontCare,
-                                       {'$set': {'expire_time': expiration}})
+    def setup(self):
+        DescribePriorityQueue.setup(self)
 
-    def test_list_queues_only_includes_queues(self):
-        db = Dingus()
+        mod.ObjectId = exception_raiser(mod.PymongoInvalidId)
+
+    def should_wrap_exception(self):
+        assert_raises(mod.PQInvalidId,
+                      self.priority_queue.cancel, Dingus())
+
+
+class WhenCancellingTask(DescribePriorityQueue):
+
+    def setup(self):
+        DescribePriorityQueue.setup(self)
+
+        self.priority_queue.collection.remove.return_value = {'n': 1}
+        self.priority_queue.cancel(Dingus())
+
+    def should_remove_document(self):
+        # TODO: Be way more specific...
+        self.priority_queue.collection.calls('remove')
+
+
+class WhenAckingNonExistantTask(DescribePriorityQueue):
+
+    def setup(self):
+        DescribePriorityQueue.setup(self)
+
+        self.priority_queue.collection.remove.return_value = {'n': 0}
+
+    def should_raise_key_error(self):
+        assert_raises(KeyError, self.priority_queue.ack, Dingus())
+
+
+class WhenAckingWithBadId(DescribePriorityQueue):
+
+    def setup(self):
+        DescribePriorityQueue.setup(self)
+        mod.ObjectId = exception_raiser(mod.PymongoInvalidId)
+
+    def should_raise_invalid_id_error(self):
+        assert_raises(mod.PQInvalidId, self.priority_queue.ack, Dingus())
+
+
+class WhenAckingSuceeds(DescribePriorityQueue):
+
+    def setup(self):
+        DescribePriorityQueue.setup(self)
+        self.priority_queue.collection.remove.return_value = {'n': 1}
+        self.id = Dingus('id')
+        self.priority_queue.ack(self.id)
+
+    def should_remove_object_with_id(self):
+        assert self.priority_queue.collection.calls(
+            'remove', {'_id': mod.ObjectId(self.id),
+                       'in_progress': True},
+            safe=True)
+
+
+class WhenPopping(DescribePriorityQueue):
+
+    def setup(self):
+        DescribePriorityQueue.setup(self)
+        # TODO: Don't mock privates
+        self.priority_queue._calculate_expiration_time = Dingus()
+        self.result = self.priority_queue.pop()
+
+    def should_calculate_expiration_time(self):
+        assert self.priority_queue._calculate_expiration_time.calls('()')
+
+    def should_set_expire_time(self):
+        expiration = self.priority_queue._calculate_expiration_time()
+        assert self.priority_queue.collection.calls(
+            'update', DontCare, {'$set': {'expire_time': expiration}})
+
+
+class WhenListingQueues(DescribePriorityQueue):
+
+    def setup(self):
+        DescribePriorityQueue.setup(self)
+        db = Dingus('db')
         db.collection_names.return_value = ['pq_empty', 'foo', 'pq_bar']
-        queues = mod.list_queues(db)
+        self.result = mod.list_queues(db)
 
-        self.assertEqual(queues, ['empty', 'bar'])
+    def should_return_ones_starting_with_pq(self):
+        assert self.result == ['empty', 'bar']
 
     def test_expiration_is_now_plus_delta(self):
         mod.datetime = Dingus()

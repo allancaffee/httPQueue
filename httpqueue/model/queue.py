@@ -3,9 +3,9 @@
 import datetime
 
 from mongokit import Document, ObjectId, OperationFailure
-import pymongo.errors
+from pymongo.errors import InvalidId as PymongoInvalidId
 
-import httpqueue.model.errors
+from httpqueue.model.errors import InvalidId as PQInvalidId
 
 # The prefix added to collections that belong to priority queues.
 PRIORITY_QUEUE_PREFIX = 'pq_'
@@ -119,8 +119,8 @@ class PriorityQueue(object):
         """Return the object id or raise an error."""
         try:
             return ObjectId(id)
-        except pymongo.errors.InvalidId as ex:
-            raise httpqueue.model.errors.InvalidId(ex)
+        except PymongoInvalidId as ex:
+            raise PQInvalidId(ex)
 
     def _calculate_expiration_time(self, pending_life):
         """Calculate the expiration date based on the pending life."""
